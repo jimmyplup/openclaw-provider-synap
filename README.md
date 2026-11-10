@@ -60,7 +60,7 @@ Spending guard rails:
 | Setting | Default | Effect |
 | --- | --- | --- |
 | `maxPerCallUsd` (`SYNAP_MAX_PER_CALL_USD`) | `0.10` | Per-call ceiling. The official x402 client checks it before signing, and a quote above it is refused, not paid. |
-| `maxTotalUsd` (`SYNAP_MAX_TOTAL_USD`) | none | Spend budget per gateway run. Once it is reached, calls answer `402` until you restart. |
+| `maxTotalUsd` (`SYNAP_MAX_TOTAL_USD`) | none | Spend budget per gateway run, reserved before each payment is signed so concurrent calls cannot overshoot it. Once it is reached, calls answer `402` until you restart. |
 
 - Only USDC can be signed. A payment option that asks to stay valid for more than a day is refused, and paid calls never follow redirects.
 - **Who can reach the proxy.** It listens on loopback only. It refuses requests that carry a browser `Origin` header or a non-loopback `Host`, so web pages cannot reach it, and it requires the bearer token from `~/.synap/proxy.token`, so other local programs cannot spend the wallet without reading that file.

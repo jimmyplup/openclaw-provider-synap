@@ -115,6 +115,9 @@ export async function startProxy(o: ProxyOptions): Promise<ProxyHandle> {
   const stats = { requests: 0, errors: 0 };
   const mode: ProxyHandle["mode"] = o.payFetch ? "x402" : "unpaid";
   const spent = () => o.payFetch?.totalUsd() ?? 0;
+  const committed = () => o.payFetch?.committedUsd?.() ?? spent();
+  const budgetReached = (msg?: string) =>
+    oaiError(msg ?? `Spend budget reached: $${committed().toFixed(4)} of $${o.maxTotalUsd} (maxTotalUsd). Raise it or restart to reset.`, "payment_required", "synap_budget_reached");
 
   const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     stats.requests++;
@@ -168,8 +171,8 @@ export async function startProxy(o: ProxyOptions): Promise<ProxyHandle> {
           ),
         );
       }
-      if (o.maxTotalUsd !== undefined && spent() >= o.maxTotalUsd) {
-        return send(res, 402, oaiError(`Spend budget reached: $${spent().toFixed(4)} of $${o.maxTotalUsd} (maxTotalUsd). Raise it or restart to reset.`, "payment_required", "synap_budget_reached"));
+      if (o.maxTotalUsd !== undefined && committed() >= o.maxTotalUsd) {
+        return send(res, 402, budgetReached());
       }
       const headers: Record<string, string> = {
         "content-type": "application/json",
@@ -177,12 +180,20 @@ export async function startProxy(o: ProxyOptions): Promise<ProxyHandle> {
         "user-agent": o.userAgent,
       };
       const before = o.payFetch.payments.length;
-      const up = await o.payFetch.fetch(`${o.origin}${X402_CHAT_PATH}`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(600_000),
-      });
+      let up: Response;
+      try {
+        up = await o.payFetch.fetch(`${o.origin}${X402_CHAT_PATH}`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(600_000),
+        });
+      } catch (e) {
+        // The signer enforces the total budget atomically; a refusal there is a budget answer, not an upstream fault.
+        const msg = String((e as Error)?.message ?? e);
+        if (/spend budget reached/i.test(msg)) return send(res, 402, budgetReached(`Spend budget reached (maxTotalUsd $${o.maxTotalUsd ?? o.payFetch.maxTotalUsd}); payment not signed. Raise it or restart to reset.`));
+        throw e;
+      }
       const paid = o.payFetch.payments.slice(before).at(-1);
       if (paid) {
         const tx = readSettlement(up.headers)?.transaction;

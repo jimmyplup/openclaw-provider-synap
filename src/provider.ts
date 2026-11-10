@@ -211,6 +211,7 @@ export function registerSynapServices(api: PluginApiLike): void {
         try {
           const payOpts: Parameters<typeof createPayFetch>[0] = { keys: s.wallet, origin: s.origin, maxPerCallUsd: s.maxPerCallUsd };
           if (s.preferNetwork) payOpts.preferNetwork = s.preferNetwork;
+          if (s.maxTotalUsd !== undefined) payOpts.maxTotalUsd = s.maxTotalUsd;
           const payFetch = await createPayFetch(payOpts);
           const opts: Parameters<typeof startProxy>[0] = {
             origin: s.origin,

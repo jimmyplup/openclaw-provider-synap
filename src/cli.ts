@@ -100,6 +100,7 @@ async function main(args: string[]): Promise<number | undefined> {
   if (cmd === "proxy") {
     const port = Number(opt(args, "--port")) || s.port;
     const payOpts: Parameters<typeof createPayFetch>[0] = { keys: s.wallet, origin: s.origin, maxPerCallUsd: s.maxPerCallUsd };
+    if (s.maxTotalUsd !== undefined) payOpts.maxTotalUsd = s.maxTotalUsd;
     if (s.preferNetwork) payOpts.preferNetwork = s.preferNetwork;
     const payFetch = await createPayFetch(payOpts);
     const token = loadProxyToken(walletDir());

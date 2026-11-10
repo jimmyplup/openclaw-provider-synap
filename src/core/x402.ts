@@ -11,6 +11,8 @@
 // - A per-call ceiling (default $0.10) is enforced by the x402 client's own
 //   spend controls BEFORE anything is signed, and only USDC (a default asset)
 //   can be signed at all.
+// - An optional total budget (maxTotalUsd) is reserved in the same synchronous
+//   step as its check, before signing, so concurrent calls cannot overshoot it.
 // - A payment option asking to stay valid for more than a day is refused.
 // - The paying fetch only talks to the configured Synap origin and never
 //   follows redirects, so a signature cannot be steered to another host.
@@ -177,15 +179,21 @@ export interface PayFetch {
   networks: string[];
   addresses: { base?: string; solana?: string };
   maxPerCallUsd: number;
+  /** Total spend budget for this process; undefined = no total cap. */
+  maxTotalUsd?: number;
   /** Payments signed so far by this process (most recent last). */
   payments: PaymentRecord[];
   totalUsd(): number;
+  /** Signed plus in-flight (reserved, not yet signed) spend; what the budget is checked against. */
+  committedUsd(): number;
 }
 
 export interface CreatePayFetchOptions {
   keys: WalletKeys;
   origin?: string;
   maxPerCallUsd?: number;
+  /** Total spend budget for this process, enforced before each payment is signed. */
+  maxTotalUsd?: number;
   preferNetwork?: PayNetwork;
   baseFetch?: typeof globalThis.fetch;
   /** Solana RPC for building the transfer (default: the x402 SVM client's mainnet RPC). */
@@ -265,7 +273,20 @@ export async function createPayFetch(opts: CreatePayFetchOptions): Promise<PayFe
   client.setSpendControls({ maxAmountPerPayment: `$${maxPerCallUsd}` });
   for (const register of registrations) register(client);
 
+  const maxTotalUsd = opts.maxTotalUsd !== undefined && Number.isFinite(opts.maxTotalUsd) && opts.maxTotalUsd > 0 ? opts.maxTotalUsd : undefined;
   const payments: PaymentRecord[] = [];
+  const paidUsd = () => payments.reduce((s, p) => s + (p.amountUsd ?? 0), 0);
+  // Budget reservations for payments that passed the checks but are not signed yet. The check and
+  // the reservation run in one synchronous step (no await between them), so concurrent requests
+  // cannot all pass the total-budget check before any of them is counted.
+  const reserved = new WeakMap<object, number>();
+  let reservedUsd = 0;
+  const release = (req: object) => {
+    const usd = reserved.get(req);
+    if (usd === undefined) return;
+    reserved.delete(req);
+    reservedUsd -= usd;
+  };
   client.onBeforePaymentCreation(async (ctx) => {
     const req = ctx.selectedRequirements as Requirement;
     const validity = Number(req.maxTimeoutSeconds ?? 0);
@@ -276,9 +297,22 @@ export async function createPayFetch(opts: CreatePayFetchOptions): Promise<PayFe
     if (usd === undefined || usd > maxPerCallUsd) {
       return { abort: true, reason: `quote ${usd === undefined ? "in an unknown asset" : `$${usd}`} exceeds the per-call ceiling $${maxPerCallUsd} (SYNAP_MAX_PER_CALL_USD)` };
     }
+    if (maxTotalUsd !== undefined) {
+      const committed = paidUsd() + reservedUsd;
+      if (committed + usd > maxTotalUsd + 1e-12) {
+        return { abort: true, reason: `spend budget reached: $${committed.toFixed(6)} committed + $${usd} would exceed $${maxTotalUsd} (maxTotalUsd)` };
+      }
+      reserved.set(ctx.selectedRequirements as object, usd);
+      reservedUsd += usd;
+    }
+    return undefined;
+  });
+  client.onPaymentCreationFailure(async (ctx) => {
+    release(ctx.selectedRequirements as object);
     return undefined;
   });
   client.onAfterPaymentCreation(async (ctx) => {
+    release(ctx.selectedRequirements as object);
     const req = ctx.selectedRequirements as Requirement;
     const rec: PaymentRecord = {
       network: String(req.network),
@@ -305,8 +339,10 @@ export async function createPayFetch(opts: CreatePayFetchOptions): Promise<PayFe
     networks,
     addresses,
     maxPerCallUsd,
+    ...(maxTotalUsd !== undefined ? { maxTotalUsd } : {}),
     payments,
-    totalUsd: () => payments.reduce((s, p) => s + (p.amountUsd ?? 0), 0),
+    totalUsd: paidUsd,
+    committedUsd: () => paidUsd() + reservedUsd,
   };
 }
 
