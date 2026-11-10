@@ -1,0 +1,54 @@
+{
+  "object": "list",
+  "data": [
+    { "id": "synap-v1", "object": "model", "owned_by": "synap", "routing": "auto — picks the cheapest served model that can do the job" },
+    { "id": "synap-v1-pro", "object": "model", "owned_by": "synap", "routing": "auto — the strongest model per job class" },
+    {
+      "id": "qwen/qwen3-vl-30b-a3b-instruct",
+      "object": "model",
+      "owned_by": "synap",
+      "name": "Qwen: Qwen3 VL 30B A3B Instruct",
+      "pricing": { "prompt_per_million": 0.14, "completion_per_million": 0.55, "currency": "USD" },
+      "capability": "Vision",
+      "tier": "standard",
+      "context_note": "Reads images, screenshots and scanned documents.",
+      "input_modalities": [{ "type": "text", "supported_inputs": { "max_context_length": { "value": 65536, "unit": "token" } } }],
+      "output_modalities": [
+        {
+          "type": "text",
+          "max_length": { "value": 65536, "unit": "token" },
+          "supported_parameters": { "max_tokens": { "type": "integer", "min": 1, "max": 65536 }, "tools": { "type": "boolean" } }
+        }
+      ]
+    },
+    {
+      "id": "qwen3-coder-30b",
+      "object": "model",
+      "owned_by": "synap",
+      "pricing": { "prompt_per_million": 0.0675, "completion_per_million": 0.27, "currency": "USD" },
+      "capability": "Coding, everyday",
+      "tier": "standard",
+      "input_modalities": [{ "type": "text", "supported_inputs": { "max_context_length": { "value": 98304, "unit": "token" } } }],
+      "output_modalities": [{ "type": "text", "max_length": { "value": 98304, "unit": "token" }, "supported_parameters": { "tools": { "type": "boolean" } } }]
+    },
+    {
+      "id": "deepseek/deepseek-v4-flash",
+      "object": "model",
+      "owned_by": "synap",
+      "pricing": { "prompt_per_million": 0.165424, "completion_per_million": 0.330848, "currency": "USD" },
+      "capability": "Fast chat",
+      "tier": "standard"
+    },
+    {
+      "id": "qwen/qwen3.5-122b-a10b",
+      "object": "model",
+      "owned_by": "synap",
+      "status": "soon",
+      "available": false,
+      "pricing": { "prompt_per_million": 0.208, "completion_per_million": 1.664, "currency": "USD" }
+    },
+    { "id": "qwen3-coder-30b", "object": "model", "owned_by": "synap", "capability": "duplicate row" },
+    { "id": "family/*", "object": "model" },
+    { "object": "model" }
+  ]
+}

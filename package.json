@@ -1,0 +1,93 @@
+{
+  "name": "openclaw-provider-synap",
+  "version": "0.1.0",
+  "description": "OpenClaw model provider for Synap by Linkrra: open models on dedicated GPUs behind an OpenAI-compatible API, with live model list and prices. Pay with an API key, or per call in USDC over x402 (Base or Solana) through a local proxy, no account needed.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./provider": {
+      "types": "./dist/provider.d.ts",
+      "import": "./dist/provider.js"
+    }
+  },
+  "bin": {
+    "openclaw-provider-synap": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "openclaw.plugin.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "openclaw": {
+    "extensions": [
+      "./dist/index.js"
+    ],
+    "providers": [
+      "synap"
+    ],
+    "compat": {
+      "pluginApi": ">=2026.9.4",
+      "minGatewayVersion": "2026.9.4"
+    },
+    "build": {
+      "openclawVersion": "2026.9.4",
+      "pluginSdkVersion": "2026.9.4"
+    },
+    "install": {
+      "npmSpec": "openclaw-provider-synap",
+      "minHostVersion": ">=2026.9.4"
+    }
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && chmod +x dist/cli.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test --experimental-strip-types test/*.test.ts",
+    "prepack": "npm run build"
+  },
+  "keywords": [
+    "openclaw",
+    "openclaw-plugin",
+    "openclaw-provider",
+    "synap",
+    "linkrra",
+    "llm",
+    "inference",
+    "open-models",
+    "openai-compatible",
+    "x402",
+    "usdc"
+  ],
+  "author": "Linkrra <weare@linkrra.com> (https://synap402.com)",
+  "license": "MIT",
+  "homepage": "https://synap402.com",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@solana/kit": "^8.6.0",
+    "@x402/core": "~2.30.0",
+    "@x402/evm": "~2.30.0",
+    "@x402/fetch": "~2.30.0",
+    "@x402/svm": "~2.30.0",
+    "viem": "^2.57.16"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.9.4"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "~5.9.3"
+  }
+}
